@@ -5,13 +5,13 @@ pub mod transport;
 use anyhow::Result;
 use clap::{Parser, Subcommand};
 use mcp_core::Content;
-use mcp_server::{router::RouterService, ByteTransport, Router, Server};
+use mcp_server::{ByteTransport, Router, Server, router::RouterService};
 use serde_json::json;
 use std::net::SocketAddr;
 use tokio::io::{stdin, stdout};
 use tools::GameToolsRouter;
 use tracing_appender::rolling::{RollingFileAppender, Rotation};
-use tracing_subscriber::{self, layer::SubscriberExt, util::SubscriberInitExt, EnvFilter};
+use tracing_subscriber::{self, EnvFilter, layer::SubscriberExt, util::SubscriberInitExt};
 
 #[derive(Parser)]
 #[command(author, version, about, long_about = None)]

@@ -2,9 +2,9 @@
 
 use crate::game_design::{DesignerLlmClient, SessionManager};
 use anyhow::Result;
-use mcp_core::{handler::ToolError, protocol::ServerCapabilities, Content, Resource, Tool};
-use mcp_server::{router::CapabilitiesBuilder, Router};
-use serde_json::{json, Value};
+use mcp_core::{Content, Resource, Tool, handler::ToolError, protocol::ServerCapabilities};
+use mcp_server::{Router, router::CapabilitiesBuilder};
+use serde_json::{Value, json};
 use std::{pin::Pin, sync::Arc};
 use tokio::sync::Mutex;
 
@@ -234,7 +234,10 @@ Provide detailed but concise information for each section.",
                             Ok(response) => response,
                             Err(e) => {
                                 // If LLM call fails, fall back to the original description
-                                tracing::warn!("Failed to get comprehensive description from LLM: {}. Using original description.", e);
+                                tracing::warn!(
+                                    "Failed to get comprehensive description from LLM: {}. Using original description.",
+                                    e
+                                );
                                 game_description.to_string()
                             }
                         }
@@ -297,23 +300,19 @@ Provide detailed but concise information for each section.",
 
                     // Logic to get the next feature
                     let session_manager = this.session_manager.lock().await;
-                    
+
                     // Get the LLM client reference if available
                     let llm_client_ref = this.llm_client.as_ref().as_ref();
-                    
+
                     match session_manager
                         .get_next_feature(session_name, llm_client_ref)
                         .await
                     {
-                        Ok(feature_description) => {
-                            Ok(vec![Content::text(feature_description)])
-                        }
-                        Err(e) => {
-                            Err(ToolError::ExecutionError(format!(
-                                "Failed to get next feature: {}",
-                                e
-                            )))
-                        }
+                        Ok(feature_description) => Ok(vec![Content::text(feature_description)]),
+                        Err(e) => Err(ToolError::ExecutionError(format!(
+                            "Failed to get next feature: {}",
+                            e
+                        ))),
                     }
                 }
                 "featureReview" => {
@@ -343,23 +342,19 @@ Provide detailed but concise information for each section.",
 
                     // Logic to submit feature review
                     let session_manager = this.session_manager.lock().await;
-                    
+
                     // Get the LLM client reference if available
                     let llm_client_ref = this.llm_client.as_ref().as_ref();
-                    
+
                     match session_manager
                         .submit_feature_review(session_name, changes_made, llm_client_ref)
                         .await
                     {
-                        Ok(review_response) => {
-                            Ok(vec![Content::text(review_response)])
-                        }
-                        Err(e) => {
-                            Err(ToolError::ExecutionError(format!(
-                                "Failed to submit feature review: {}",
-                                e
-                            )))
-                        }
+                        Ok(review_response) => Ok(vec![Content::text(review_response)]),
+                        Err(e) => Err(ToolError::ExecutionError(format!(
+                            "Failed to submit feature review: {}",
+                            e
+                        ))),
                     }
                 }
                 "reviewReply" => {
@@ -389,23 +384,19 @@ Provide detailed but concise information for each section.",
 
                     // Logic to reply to review questions
                     let session_manager = this.session_manager.lock().await;
-                    
+
                     // Get the LLM client reference if available
                     let llm_client_ref = this.llm_client.as_ref().as_ref();
-                    
+
                     match session_manager
                         .submit_review_reply(session_name, content, llm_client_ref)
                         .await
                     {
-                        Ok(reply_response) => {
-                            Ok(vec![Content::text(reply_response)])
-                        }
-                        Err(e) => {
-                            Err(ToolError::ExecutionError(format!(
-                                "Failed to submit review reply: {}",
-                                e
-                            )))
-                        }
+                        Ok(reply_response) => Ok(vec![Content::text(reply_response)]),
+                        Err(e) => Err(ToolError::ExecutionError(format!(
+                            "Failed to submit review reply: {}",
+                            e
+                        ))),
                     }
                 }
                 "featureAsk" => {

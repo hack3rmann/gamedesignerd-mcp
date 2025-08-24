@@ -3,14 +3,14 @@ pub mod summarizer;
 use crate::tools::docs::summarizer::AiSummarizer;
 use html2md::parse_html;
 use mcp_core::{
+    Content, Resource, Tool, ToolError,
     handler::{PromptError, ResourceError},
     prompt::Prompt,
     protocol::ServerCapabilities,
-    Content, Resource, Tool, ToolError,
 };
 use mcp_server::router::CapabilitiesBuilder;
 use reqwest::Client;
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 use std::{future::Future, pin::Pin, sync::Arc};
 use tokio::sync::Mutex;
 

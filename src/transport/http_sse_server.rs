@@ -1,14 +1,14 @@
 use crate::{tools::DocRouter, transport::jsonrpc_frame_codec::JsonRpcFrameCodec};
 use axum::{
+    Router,
     body::Body,
     extract::{Query, State},
     http::StatusCode,
     response::sse::{Event, Sse},
     routing::get,
-    Router,
 };
 use futures::{Stream, StreamExt, TryStreamExt};
-use mcp_server::{router::RouterService, ByteTransport, Server};
+use mcp_server::{ByteTransport, Server, router::RouterService};
 use std::{collections::HashMap, sync::Arc};
 use tokio::{
     io::{self, AsyncWriteExt},
