@@ -317,16 +317,96 @@ Provide detailed but concise information for each section.",
                     }
                 }
                 "featureReview" => {
+                    let session_name = arguments
+                        .get("sessionName")
+                        .and_then(|v| v.as_str())
+                        .ok_or_else(|| {
+                            ToolError::InvalidParameters(
+                                "sessionName is required for featureReview".to_string(),
+                            )
+                        })?;
+                    let changes_made = arguments
+                        .get("changesMade")
+                        .and_then(|v| v.as_str())
+                        .ok_or_else(|| {
+                            ToolError::InvalidParameters(
+                                "changesMade is required for featureReview".to_string(),
+                            )
+                        })?;
+
+                    // Validate that changes_made is not empty
+                    if changes_made.trim().is_empty() {
+                        return Err(ToolError::InvalidParameters(
+                            "changesMade cannot be empty for featureReview".to_string(),
+                        ));
+                    }
+
                     // Logic to submit feature review
-                    Err(ToolError::ExecutionError(
-                        "Tool 'featureReview' is not yet implemented.".to_string(),
-                    ))
+                    let session_manager = this.session_manager.lock().await;
+                    
+                    // Get the LLM client reference if available
+                    let llm_client_ref = this.llm_client.as_ref().as_ref();
+                    
+                    match session_manager
+                        .submit_feature_review(session_name, changes_made, llm_client_ref)
+                        .await
+                    {
+                        Ok(review_response) => {
+                            Ok(vec![Content::text(review_response)])
+                        }
+                        Err(e) => {
+                            Err(ToolError::ExecutionError(format!(
+                                "Failed to submit feature review: {}",
+                                e
+                            )))
+                        }
+                    }
                 }
                 "reviewReply" => {
+                    let session_name = arguments
+                        .get("sessionName")
+                        .and_then(|v| v.as_str())
+                        .ok_or_else(|| {
+                            ToolError::InvalidParameters(
+                                "sessionName is required for reviewReply".to_string(),
+                            )
+                        })?;
+                    let content = arguments
+                        .get("content")
+                        .and_then(|v| v.as_str())
+                        .ok_or_else(|| {
+                            ToolError::InvalidParameters(
+                                "content is required for reviewReply".to_string(),
+                            )
+                        })?;
+
+                    // Validate that content is not empty
+                    if content.trim().is_empty() {
+                        return Err(ToolError::InvalidParameters(
+                            "content cannot be empty for reviewReply".to_string(),
+                        ));
+                    }
+
                     // Logic to reply to review questions
-                    Err(ToolError::ExecutionError(
-                        "Tool 'reviewReply' is not yet implemented.".to_string(),
-                    ))
+                    let session_manager = this.session_manager.lock().await;
+                    
+                    // Get the LLM client reference if available
+                    let llm_client_ref = this.llm_client.as_ref().as_ref();
+                    
+                    match session_manager
+                        .submit_review_reply(session_name, content, llm_client_ref)
+                        .await
+                    {
+                        Ok(reply_response) => {
+                            Ok(vec![Content::text(reply_response)])
+                        }
+                        Err(e) => {
+                            Err(ToolError::ExecutionError(format!(
+                                "Failed to submit review reply: {}",
+                                e
+                            )))
+                        }
+                    }
                 }
                 "featureAsk" => {
                     // Logic to ask an ad-hoc question

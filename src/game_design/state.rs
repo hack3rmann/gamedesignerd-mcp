@@ -14,7 +14,7 @@ pub struct Feature {
 }
 
 /// Status of a feature.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub enum FeatureStatus {
     Planned,
     InProgress,

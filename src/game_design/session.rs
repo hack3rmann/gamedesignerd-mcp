@@ -236,6 +236,224 @@ impl SessionManager {
             )),
         }
     }
+
+    /// Submits a feature implementation report for review.
+    /// Returns the LLM's review, which may include questions or feedback.
+    pub async fn submit_feature_review(
+        &self,
+        session_id: &str,
+        changes_made: &str,
+        llm_client: Option<&crate::game_design::DesignerLlmClient>,
+    ) -> Result<String> {
+        let mut sessions = self.sessions.write().await;
+
+        // Try to load from file if not in memory
+        if !sessions.contains_key(session_id) {
+            let session_file_path = format!("{}/{}.json", self.persistence_path, session_id);
+            if Path::new(&session_file_path).exists() {
+                let session_json = fs::read_to_string(&session_file_path)?;
+                let session: SessionState = serde_json::from_str(&session_json)?;
+                sessions.insert(session_id.to_string(), session);
+            } else {
+                return Err(anyhow::anyhow!("Session '{}' not found", session_id));
+            }
+        }
+
+        // Get the session
+        let session = sessions.get_mut(session_id).unwrap();
+
+        // If we don't have an LLM client, we can't perform a review
+        let llm_client = llm_client.ok_or_else(|| {
+            anyhow::anyhow!("LLM client not available to perform feature review")
+        })?;
+
+        // Get the current feature being implemented
+        let current_feature_name = session.next_feature_to_implement.clone()
+            .ok_or_else(|| anyhow::anyhow!("No next feature to implement"))?;
+
+        // Find the feature in planned_features
+        let feature_index = session.planned_features.iter().position(|f| f.name == current_feature_name)
+            .ok_or_else(|| anyhow::anyhow!("Feature '{}' not found in planned features", current_feature_name))?;
+
+        // Generate a prompt for the LLM to review the implementation
+        let mut prompt = format!(
+            "Based on this game design document:\n{}\n\n",
+            session.initial_description
+        );
+
+        // Add information about the feature that was implemented
+        let feature = &session.planned_features[feature_index];
+        prompt.push_str(&format!(
+            "Feature that was implemented:\nName: {}\nDescription: {}\n\n",
+            feature.name, feature.description
+        ));
+
+        // Add the changes made report
+        prompt.push_str(&format!("Implementation report from developer:\n{}\n\n", changes_made));
+
+        prompt.push_str(
+            "Please review this implementation report. Check if:\n\
+             1. The implementation matches the feature specification\n\
+             2. There are any potential issues or missing elements\n\
+             3. The implementation aligns with the overall game design\n\n\
+             If you have any questions about the implementation, please ask them clearly.\n\
+             If you're satisfied with the implementation, respond with 'SATISFIED'.\n\
+             Otherwise, provide your feedback and any specific questions."
+        );
+
+        let messages = vec![
+            crate::game_design::designer_llm::ChatMessage {
+                role: "system".to_string(),
+                content: "You are an expert game designer and software architect. \
+                         Your task is to review implementation reports for game features. \
+                         You will be given the game design document, the feature specification, \
+                         and the developer's implementation report. Review the implementation \
+                         and provide feedback. If you have questions, ask them clearly. \
+                         If you're satisfied, respond with 'SATISFIED'.".to_string(),
+            },
+            crate::game_design::designer_llm::ChatMessage {
+                role: "user".to_string(),
+                content: prompt,
+            },
+        ];
+
+        // Call the LLM to review the implementation
+        let review_response = llm_client.call_llm(messages).await?;
+
+        // Check if the LLM is satisfied or has questions
+        let is_satisfied = review_response.trim().to_uppercase() == "SATISFIED";
+
+        // Store the implementation report
+        session.implemented_features_reports.insert(
+            current_feature_name.clone(),
+            changes_made.to_string()
+        );
+
+        // Update the feature status based on the review
+        if is_satisfied {
+            session.planned_features[feature_index].status = crate::game_design::state::FeatureStatus::Reviewed;
+            session.next_feature_to_implement = None; // Clear the next feature since this one is done
+        } else {
+            session.planned_features[feature_index].status = crate::game_design::state::FeatureStatus::NeedsRework;
+        }
+
+        // Save the updated session
+        let session_file_path = format!("{}/{}.json", self.persistence_path, session.id);
+        let session_json = serde_json::to_string_pretty(&*session)?;
+        fs::write(&session_file_path, session_json)?;
+
+        Ok(review_response)
+    }
+
+    /// Submits a reply to questions from a feature review.
+    /// Returns the LLM's response to the reply, which may include further questions or acceptance.
+    pub async fn submit_review_reply(
+        &self,
+        session_id: &str,
+        content: &str,
+        llm_client: Option<&crate::game_design::DesignerLlmClient>,
+    ) -> Result<String> {
+        let mut sessions = self.sessions.write().await;
+
+        // Try to load from file if not in memory
+        if !sessions.contains_key(session_id) {
+            let session_file_path = format!("{}/{}.json", self.persistence_path, session_id);
+            if Path::new(&session_file_path).exists() {
+                let session_json = fs::read_to_string(&session_file_path)?;
+                let session: SessionState = serde_json::from_str(&session_json)?;
+                sessions.insert(session_id.to_string(), session);
+            } else {
+                return Err(anyhow::anyhow!("Session '{}' not found", session_id));
+            }
+        }
+
+        // Get the session
+        let session = sessions.get_mut(session_id).unwrap();
+
+        // If we don't have an LLM client, we can't process the reply
+        let llm_client = llm_client.ok_or_else(|| {
+            anyhow::anyhow!("LLM client not available to process review reply")
+        })?;
+
+        // Get the current feature being reviewed
+        let current_feature_name = session.next_feature_to_implement.clone()
+            .ok_or_else(|| anyhow::anyhow!("No next feature to implement"))?;
+
+        // Find the feature in planned_features
+        let feature_index = session.planned_features.iter().position(|f| f.name == current_feature_name)
+            .ok_or_else(|| anyhow::anyhow!("Feature '{}' not found in planned features", current_feature_name))?;
+
+        // Check that the feature is in NeedsRework status
+        if session.planned_features[feature_index].status != crate::game_design::state::FeatureStatus::NeedsRework {
+            return Err(anyhow::anyhow!("Feature '{}' is not in NeedsRework status", current_feature_name));
+        }
+
+        // Get the previous implementation report
+        let previous_report = session.implemented_features_reports.get(&current_feature_name)
+            .ok_or_else(|| anyhow::anyhow!("No implementation report found for feature '{}'", current_feature_name))?;
+
+        // Generate a prompt for the LLM to process the reply
+        let mut prompt = format!(
+            "Based on this game design document:\n{}\n\n",
+            session.initial_description
+        );
+
+        // Add information about the feature that was implemented
+        let feature = &session.planned_features[feature_index];
+        prompt.push_str(&format!(
+            "Feature that was implemented:\nName: {}\nDescription: {}\n\n",
+            feature.name, feature.description
+        ));
+
+        // Add the previous implementation report
+        prompt.push_str(&format!("Previous implementation report from developer:\n{}\n\n", previous_report));
+
+        // Add the developer's reply to the review questions
+        prompt.push_str(&format!("Developer's reply to review questions:\n{}\n\n", content));
+
+        prompt.push_str(
+            "Please review the developer's reply to your previous questions. \
+             If you're satisfied with the answers and the implementation, respond with 'SATISFIED'. \
+             If you have additional questions or concerns, please ask them clearly. \
+             If the implementation still needs work, explain what is missing."
+        );
+
+        let messages = vec![
+            crate::game_design::designer_llm::ChatMessage {
+                role: "system".to_string(),
+                content: "You are an expert game designer and software architect. \
+                         Your task is to review replies to your questions about feature implementations. \
+                         You will be given the game design document, the feature specification, \
+                         the previous implementation report, and the developer's reply to your questions. \
+                         Review the reply and provide feedback. If you're satisfied, respond with 'SATISFIED'. \
+                         If you have additional questions, ask them clearly.".to_string(),
+            },
+            crate::game_design::designer_llm::ChatMessage {
+                role: "user".to_string(),
+                content: prompt,
+            },
+        ];
+
+        // Call the LLM to process the reply
+        let reply_response = llm_client.call_llm(messages).await?;
+
+        // Check if the LLM is satisfied or has more questions
+        let is_satisfied = reply_response.trim().to_uppercase() == "SATISFIED";
+
+        // Update the feature status based on the reply
+        if is_satisfied {
+            session.planned_features[feature_index].status = crate::game_design::state::FeatureStatus::Reviewed;
+            session.next_feature_to_implement = None; // Clear the next feature since this one is done
+        }
+        // If not satisfied, the status remains NeedsRework
+
+        // Save the updated session
+        let session_file_path = format!("{}/{}.json", self.persistence_path, session.id);
+        let session_json = serde_json::to_string_pretty(&*session)?;
+        fs::write(&session_file_path, session_json)?;
+
+        Ok(reply_response)
+    }
 }
 
 // Add the Default implementation as suggested by Clippy
