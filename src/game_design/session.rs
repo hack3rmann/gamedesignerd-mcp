@@ -429,44 +429,57 @@ impl SessionManager {
 
         // Generate a prompt for the LLM to process the reply
         let mut prompt = format!(
-            "Based on this game design document:\n{}\n\n",
+            "Based on this game design document:
+{}
+
+",
             session.initial_description
         );
 
         // Add information about the feature that was implemented
         let feature = &session.planned_features[feature_index];
         prompt.push_str(&format!(
-            "Feature that was implemented:\nName: {}\nDescription: {}\n\n",
+            "Feature that was implemented:
+Name: {}
+Description: {}
+
+",
             feature.name, feature.description
         ));
 
         // Add the previous implementation report
         prompt.push_str(&format!(
-            "Previous implementation report from developer:\n{}\n\n",
+            "Previous implementation report from developer:
+{}
+
+",
             previous_report
         ));
 
         // Add the developer's reply to the review questions
         prompt.push_str(&format!(
-            "Developer's reply to review questions:\n{}\n\n",
+            "Developer's reply to review questions:
+{}
+
+",
             content
         ));
 
         prompt.push_str(
-            "Please review the developer's reply to your previous questions. \
-             If you're satisfied with the answers and the implementation, respond with 'SATISFIED'. \
-             If you have additional questions or concerns, please ask them clearly. \
-             If the implementation still needs work, explain what is missing."
+            "Please review the developer's reply to your previous questions. 
+             If you're satisfied with the answers and the implementation, respond with 'SATISFIED'. 
+             If you have additional questions or concerns, please ask them clearly. 
+             If the implementation still needs work, explain what is missing.",
         );
 
         let messages = vec![
             crate::game_design::designer_llm::ChatMessage {
                 role: "system".to_string(),
-                content: "You are an expert game designer and software architect. \
-                         Your task is to review replies to your questions about feature implementations. \
-                         You will be given the game design document, the feature specification, \
-                         the previous implementation report, and the developer's reply to your questions. \
-                         Review the reply and provide feedback. If you're satisfied, respond with 'SATISFIED'. \
+                content: "You are an expert game designer and software architect. 
+                         Your task is to review replies to your questions about feature implementations. 
+                         You will be given the game design document, the feature specification, 
+                         the previous implementation report, and the developer's reply to your questions. 
+                         Review the reply and provide feedback. If you're satisfied, respond with 'SATISFIED'. 
                          If you have additional questions, ask them clearly.".to_string(),
             },
             crate::game_design::designer_llm::ChatMessage {
@@ -495,6 +508,110 @@ impl SessionManager {
         fs::write(&session_file_path, session_json)?;
 
         Ok(reply_response)
+    }
+
+    /// Answers an ad-hoc question about the current feature or design.
+    /// Returns the LLM's response to the question.
+    pub async fn answer_feature_question(
+        &self,
+        session_id: &str,
+        question: &str,
+        llm_client: Option<&crate::game_design::DesignerLlmClient>,
+    ) -> Result<String> {
+        let mut sessions = self.sessions.write().await;
+
+        // Try to load from file if not in memory
+        if !sessions.contains_key(session_id) {
+            let session_file_path = format!("{}/{}.json", self.persistence_path, session_id);
+            if Path::new(&session_file_path).exists() {
+                let session_json = fs::read_to_string(&session_file_path)?;
+                let session: SessionState = serde_json::from_str(&session_json)?;
+                sessions.insert(session_id.to_string(), session);
+            } else {
+                return Err(anyhow::anyhow!("Session '{}' not found", session_id));
+            }
+        }
+
+        // Get the session
+        let session = sessions.get_mut(session_id).unwrap();
+
+        // If we don't have an LLM client, we can't answer the question
+        let llm_client = llm_client.ok_or_else(|| {
+            anyhow::anyhow!("LLM client not available to answer feature question")
+        })?;
+
+        // Get information about the current feature if there is one
+        let current_feature_info =
+            if let Some(current_feature_name) = &session.next_feature_to_implement {
+                // Find the feature in planned_features
+                if let Some(feature) = session
+                    .planned_features
+                    .iter()
+                    .find(|f| &f.name == current_feature_name)
+                {
+                    format!(
+                        "
+Current feature being implemented:
+Name: {}
+Description: {}
+",
+                        feature.name, feature.description
+                    )
+                } else {
+                    String::new()
+                }
+            } else {
+                String::new()
+            };
+
+        // Generate a prompt for the LLM to answer the question
+        let mut prompt = format!(
+            "Based on this game design document:
+{}
+{}",
+            session.initial_description, current_feature_info
+        );
+
+        // Add the developer's question
+        prompt.push_str(&format!(
+            "Developer's question:
+{}
+",
+            question
+        ));
+
+        prompt.push_str(
+            "
+Please answer the developer's question based on the game design document 
+             and the current feature information. Provide a clear and concise answer.",
+        );
+
+        let messages = vec![
+            crate::game_design::designer_llm::ChatMessage {
+                role: "system".to_string(),
+                content: "You are an expert game designer and software architect. 
+                         Your task is to answer ad-hoc questions from developers about 
+                         the game design or current feature implementation. 
+                         You will be given the game design document, information about 
+                         the current feature (if any), and the developer's question. 
+                         Provide a clear and concise answer."
+                    .to_string(),
+            },
+            crate::game_design::designer_llm::ChatMessage {
+                role: "user".to_string(),
+                content: prompt,
+            },
+        ];
+
+        // Call the LLM to answer the question
+        let answer_response = llm_client.call_llm(messages).await?;
+
+        // Save the updated session (in case the LLM added to the chat history)
+        let session_file_path = format!("{}/{}.json", self.persistence_path, session.id);
+        let session_json = serde_json::to_string_pretty(&*session)?;
+        fs::write(&session_file_path, session_json)?;
+
+        Ok(answer_response)
     }
 }
 

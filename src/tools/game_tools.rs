@@ -400,10 +400,46 @@ Provide detailed but concise information for each section.",
                     }
                 }
                 "featureAsk" => {
-                    // Logic to ask an ad-hoc question
-                    Err(ToolError::ExecutionError(
-                        "Tool 'featureAsk' is not yet implemented.".to_string(),
-                    ))
+                    let session_name = arguments
+                        .get("sessionName")
+                        .and_then(|v| v.as_str())
+                        .ok_or_else(|| {
+                            ToolError::InvalidParameters(
+                                "sessionName is required for featureAsk".to_string(),
+                            )
+                        })?;
+                    let question = arguments
+                        .get("question")
+                        .and_then(|v| v.as_str())
+                        .ok_or_else(|| {
+                            ToolError::InvalidParameters(
+                                "question is required for featureAsk".to_string(),
+                            )
+                        })?;
+
+                    // Validate that question is not empty
+                    if question.trim().is_empty() {
+                        return Err(ToolError::InvalidParameters(
+                            "question cannot be empty for featureAsk".to_string(),
+                        ));
+                    }
+
+                    // Logic to ask a question about the current feature or design
+                    let session_manager = this.session_manager.lock().await;
+
+                    // Get the LLM client reference if available
+                    let llm_client_ref = this.llm_client.as_ref().as_ref();
+
+                    match session_manager
+                        .answer_feature_question(session_name, question, llm_client_ref)
+                        .await
+                    {
+                        Ok(answer_response) => Ok(vec![Content::text(answer_response)]),
+                        Err(e) => Err(ToolError::ExecutionError(format!(
+                            "Failed to answer feature question: {}",
+                            e
+                        ))),
+                    }
                 }
                 _ => Err(ToolError::NotFound(format!(
                     "Tool '{}' not found.",
