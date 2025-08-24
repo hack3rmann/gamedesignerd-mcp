@@ -1,16 +1,10 @@
 [package]
 name = "game-designer-mcp"
 version = "0.1.0"
-edition = "2021"
+edition = "2024"
 description = "Game Design MCP Server for LLM-based game development"
-authors = ["Qwen Code <noreply@alibabacloud.com>"]
 license = "MIT"
-repository = "https://github.com/your-username/game-designer-mcp" # TODO: Update this # TODO: Update this
-
-[workspace]
-members = [
-    ".",
-]
+repository = "https://github.com/hack3rmann/gamedesignerd-mcp"
 
 [dependencies]
 # MCP dependencies from GitHub
@@ -46,8 +40,3 @@ html2md = "0.2.14"
 [dev-dependencies]
 # Testing utilities
 mockito = "1.2"
-
-# Main binary with subcommands
-[[bin]]
-name = "gamedesignerd"
-path = "src/bin/gamedesignerd.rs"

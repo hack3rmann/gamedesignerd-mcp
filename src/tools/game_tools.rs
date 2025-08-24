@@ -2,24 +2,21 @@
 
 use crate::game_design::{DesignerLlmClient, SessionManager};
 use anyhow::Result;
-use mcp_core::{
-    handler::ToolError,
-    protocol::ServerCapabilities,
-    Content,
-    Resource,
-    Tool, // Import Tool struct
-};
+use mcp_core::{handler::ToolError, protocol::ServerCapabilities, Content, Resource, Tool};
 use mcp_server::{router::CapabilitiesBuilder, Router};
 use serde_json::{json, Value};
-use std::sync::Arc;
+use std::{pin::Pin, sync::Arc};
 use tokio::sync::Mutex;
 
 /// The main router for game design tools.
+#[derive(Clone)]
 pub struct GameToolsRouter {
     // We'll need access to the session manager and LLM client
     session_manager: Arc<Mutex<SessionManager>>,
-    llm_client: Arc<Option<DesignerLlmClient>>, // Make LLM client optional
-                                                // TODO: Add any other necessary state or configuration
+    // Make LLM client optional
+    // TODO: Add any other necessary state or configuration
+    #[allow(dead_code)]
+    llm_client: Arc<Option<DesignerLlmClient>>,
 }
 
 impl GameToolsRouter {
@@ -42,15 +39,15 @@ impl GameToolsRouter {
 
 impl Router for GameToolsRouter {
     fn name(&self) -> String {
-        "game-designer".to_string()
+        "game-designer".to_owned()
     }
 
     fn instructions(&self) -> String {
-        "This server provides tools for managing a game design process.
-        You can create design sessions, get an overview, receive the next feature to implement,
-        submit a review of implemented features, reply to questions from the review,
+        "This server provides tools for managing a game design process. \
+        You can create design sessions, get an overview, receive the next feature to implement, \
+        submit a review of implemented features, reply to questions from the review, \
         and ask ad-hoc questions about the current feature or design."
-            .to_string()
+            .to_owned()
     }
 
     fn capabilities(&self) -> ServerCapabilities {
@@ -172,9 +169,8 @@ impl Router for GameToolsRouter {
         &self,
         tool_name: &str,
         arguments: Value,
-    ) -> std::pin::Pin<
-        Box<dyn futures::Future<Output = Result<Vec<Content>, ToolError>> + Send + 'static>,
-    > {
+    ) -> Pin<Box<dyn futures::Future<Output = Result<Vec<Content>, ToolError>> + Send + 'static>>
+    {
         // This is an async function signature, so we need to box a future.
         // We'll implement the logic for each tool call here.
         // For now, we'll return a stub response or an error indicating it's not yet implemented.
@@ -284,7 +280,7 @@ impl Router for GameToolsRouter {
     fn read_resource(
         &self,
         _uri: &str,
-    ) -> std::pin::Pin<
+    ) -> Pin<
         Box<
             dyn futures::Future<Output = Result<String, mcp_core::handler::ResourceError>>
                 + Send
@@ -305,7 +301,7 @@ impl Router for GameToolsRouter {
     fn get_prompt(
         &self,
         _prompt_name: &str,
-    ) -> std::pin::Pin<
+    ) -> Pin<
         Box<
             dyn futures::Future<Output = Result<String, mcp_core::handler::PromptError>>
                 + Send
@@ -317,16 +313,5 @@ impl Router for GameToolsRouter {
                 "Prompt not found".to_string(),
             ))
         })
-    }
-}
-
-// Implementing Clone manually because `Router` trait doesn't require it,
-// but we need it for the `call_tool` async function.
-impl Clone for GameToolsRouter {
-    fn clone(&self) -> Self {
-        Self {
-            session_manager: Arc::clone(&self.session_manager),
-            llm_client: Arc::clone(&self.llm_client),
-        }
     }
 }

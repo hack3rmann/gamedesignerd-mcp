@@ -39,20 +39,20 @@ pub struct DesignerLlmClient {
     model: String, // e.g., "tngtech/deepseek-r1t2-chimera:free"
 }
 
+pub const CHIMERA_MODEL: &str = "tngtech/deepseek-r1t2-chimera:free";
+
 impl DesignerLlmClient {
     /// Creates a new `DesignerLlmClient`.
-    /// Expects `GAME_DESIGNER_API_KEY` environment variable to be set.
+    /// Expects `OPENROUTER_API_KEY` environment variable to be set.
     pub fn new() -> Result<Self> {
-        let api_key = env::var("GAME_DESIGNER_API_KEY")
-            .map_err(|_| anyhow::anyhow!("GAME_DESIGNER_API_KEY environment variable not set"))?;
-
-        // TODO: Make model configurable or use a default suitable for planning tasks.
-        let model = "tngtech/deepseek-r1t2-chimera:free".to_string();
+        let api_key = env::var("OPENROUTER_API_KEY")
+            .map_err(|_| anyhow::anyhow!("OPENROUTER_API_KEY environment variable not set"))?;
 
         Ok(Self {
             client: Client::new(),
             api_key,
-            model,
+            // TODO: Make model configurable or use a default suitable for planning tasks.
+            model: CHIMERA_MODEL.to_owned(),
         })
     }
 
@@ -80,6 +80,7 @@ impl DesignerLlmClient {
         if !response.status().is_success() {
             let status = response.status();
             let error_text = response.text().await?;
+
             return Err(anyhow::anyhow!(
                 "LLM API request failed with status {}: {}",
                 status,
@@ -88,6 +89,7 @@ impl DesignerLlmClient {
         }
 
         let api_response: LlmResponse = response.json().await?;
+
         if let Some(choice) = api_response.choices.first() {
             Ok(choice.message.content.clone())
         } else {

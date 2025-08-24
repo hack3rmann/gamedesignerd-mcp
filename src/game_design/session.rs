@@ -74,6 +74,7 @@ impl SessionManager {
 
         // Try to load from file
         let session_file_path = format!("{}/{}.json", self.persistence_path, session_id);
+
         if Path::new(&session_file_path).exists() {
             let session_json = fs::read_to_string(&session_file_path)?;
             let session: SessionState = serde_json::from_str(&session_json)?;
@@ -91,6 +92,7 @@ impl SessionManager {
         // Save to file
         let session_file_path = format!("{}/{}.json", self.persistence_path, session_state.id);
         let session_json = serde_json::to_string_pretty(&session_state)?;
+
         fs::write(&session_file_path, session_json)?;
 
         // Update in memory

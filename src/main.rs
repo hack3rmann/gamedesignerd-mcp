@@ -1,18 +1,20 @@
+pub mod game_design;
+pub mod tools;
+pub mod transport;
+
 use anyhow::Result;
 use clap::{Parser, Subcommand};
-// Import the new GameToolsRouter
-use game_designer_mcp::tools::GameToolsRouter;
 use mcp_core::Content;
-use mcp_server::router::RouterService;
-use mcp_server::{ByteTransport, Router, Server};
+use mcp_server::{router::RouterService, ByteTransport, Router, Server};
 use serde_json::json;
 use std::net::SocketAddr;
 use tokio::io::{stdin, stdout};
+use tools::GameToolsRouter;
 use tracing_appender::rolling::{RollingFileAppender, Rotation};
 use tracing_subscriber::{self, layer::SubscriberExt, util::SubscriberInitExt, EnvFilter};
 
 #[derive(Parser)]
-#[command(author, version = "0.1.0", about, long_about = None)]
+#[command(author, version, about, long_about = None)]
 #[command(propagate_version = true)]
 #[command(disable_version_flag = true)]
 struct Cli {
@@ -158,7 +160,7 @@ async fn run_http_server(address: String, debug: bool) -> Result<()> {
     // Note: The transport module might need updates if it's specific to docs.
     // For now, we'll assume a generic HTTP SSE setup or that the transport module is adaptable.
     // Create app and run server
-    let app = game_designer_mcp::transport::http_sse_server::App::new(); // This path might need adjustment
+    let app = transport::http_sse_server::App::new(); // This path might need adjustment
     axum::serve(listener, app.router()).await?;
 
     Ok(())
@@ -191,16 +193,24 @@ async fn run_test_tool(config: TestToolConfig) -> Result<()> {
     if tool == "help" {
         println!("Game Designer MCP CLI Tool Tester\n");
         println!("Usage examples:");
-        println!("  cargo run --bin gamedesignerd -- test --tool designNew --session-name my_game --game-description \"A 2D platformer about cats in space\"");
+        println!(
+            "  cargo run --bin gamedesignerd -- test --tool designNew --session-name my_game --game-description \"A 2D platformer about cats in space\""
+        );
         println!(
             "  cargo run --bin gamedesignerd -- test --tool designOverview --session-name my_game"
         );
         println!(
             "  cargo run --bin gamedesignerd -- test --tool nextFeature --session-name my_game"
         );
-        println!("  cargo run --bin gamedesignerd -- test --tool featureReview --session-name my_game --changes-made \"Implemented basic player movement with WASD and jump\"");
-        println!("  cargo run --bin gamedesignerd -- test --tool reviewReply --session-name my_game --content \"Yes, I used the Bevy engine for this implementation.\"");
-        println!("  cargo run --bin gamedesignerd -- test --tool featureAsk --session-name my_game --question \"How should the player interact with collectible items?\"");
+        println!(
+            "  cargo run --bin gamedesignerd -- test --tool featureReview --session-name my_game --changes-made \"Implemented basic player movement with WASD and jump\""
+        );
+        println!(
+            "  cargo run --bin gamedesignerd -- test --tool reviewReply --session-name my_game --content \"Yes, I used the Bevy engine for this implementation.\""
+        );
+        println!(
+            "  cargo run --bin gamedesignerd -- test --tool featureAsk --session-name my_game --question \"How should the player interact with collectible items?\""
+        );
 
         println!("\nAvailable tools:");
         println!("  designNew      - Create a new game design session");
@@ -307,12 +317,24 @@ async fn run_test_tool(config: TestToolConfig) -> Result<()> {
         Err(e) => {
             eprintln!("\nERROR: {}", e);
             eprintln!("\nTip: Try these suggestions:");
-            eprintln!("  - Create a session: cargo run --bin gamedesignerd -- test --tool designNew --session-name my_game --game-description \"A 2D platformer about cats in space\"");
-            eprintln!("  - Get overview: cargo run --bin gamedesignerd -- test --tool designOverview --session-name my_game");
-            eprintln!("  - Get next feature: cargo run --bin gamedesignerd -- test --tool nextFeature --session-name my_game");
-            eprintln!("  - Review feature: cargo run --bin gamedesignerd -- test --tool featureReview --session-name my_game --changes-made \"Implemented basic player movement with WASD and jump\"");
-            eprintln!("  - Reply to review: cargo run --bin gamedesignerd -- test --tool reviewReply --session-name my_game --content \"Yes, I used the Bevy engine for this implementation.\"");
-            eprintln!("  - Ask a question: cargo run --bin gamedesignerd -- test --tool featureAsk --session-name my_game --question \"How should the player interact with collectible items?\"");
+            eprintln!(
+                "  - Create a session: cargo run --bin gamedesignerd -- test --tool designNew --session-name my_game --game-description \"A 2D platformer about cats in space\""
+            );
+            eprintln!(
+                "  - Get overview: cargo run --bin gamedesignerd -- test --tool designOverview --session-name my_game"
+            );
+            eprintln!(
+                "  - Get next feature: cargo run --bin gamedesignerd -- test --tool nextFeature --session-name my_game"
+            );
+            eprintln!(
+                "  - Review feature: cargo run --bin gamedesignerd -- test --tool featureReview --session-name my_game --changes-made \"Implemented basic player movement with WASD and jump\""
+            );
+            eprintln!(
+                "  - Reply to review: cargo run --bin gamedesignerd -- test --tool reviewReply --session-name my_game --content \"Yes, I used the Bevy engine for this implementation.\""
+            );
+            eprintln!(
+                "  - Ask a question: cargo run --bin gamedesignerd -- test --tool featureAsk --session-name my_game --question \"How should the player interact with collectible items?\""
+            );
             eprintln!("  - For help: cargo run --bin gamedesignerd -- test --tool help");
             return Ok(());
         }
