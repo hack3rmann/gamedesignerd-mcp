@@ -10,6 +10,6 @@ pub mod designer_llm;
 pub mod state;
 
 // Re-export key items for easier access
-pub use session::SessionManager;
 pub use designer_llm::DesignerLlmClient;
+pub use session::SessionManager;
 pub use state::SessionState;

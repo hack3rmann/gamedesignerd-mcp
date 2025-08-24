@@ -45,9 +45,9 @@ impl DesignerLlmClient {
     pub fn new() -> Result<Self> {
         let api_key = env::var("GAME_DESIGNER_API_KEY")
             .map_err(|_| anyhow::anyhow!("GAME_DESIGNER_API_KEY environment variable not set"))?;
-        
+
         // TODO: Make model configurable or use a default suitable for planning tasks.
-        let model = "tngtech/deepseek-r1t2-chimera:free".to_string(); 
+        let model = "tngtech/deepseek-r1t2-chimera:free".to_string();
 
         Ok(Self {
             client: Client::new(),

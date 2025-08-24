@@ -5,7 +5,9 @@ use anyhow::Result;
 use mcp_core::{
     handler::ToolError,
     protocol::ServerCapabilities,
-    Content, Resource, Tool, // Import Tool struct
+    Content,
+    Resource,
+    Tool, // Import Tool struct
 };
 use mcp_server::{router::CapabilitiesBuilder, Router};
 use serde_json::{json, Value};
@@ -16,15 +18,20 @@ use tokio::sync::Mutex;
 pub struct GameToolsRouter {
     // We'll need access to the session manager and LLM client
     session_manager: Arc<Mutex<SessionManager>>,
-    llm_client: Arc<DesignerLlmClient>,
-    // TODO: Add any other necessary state or configuration
+    llm_client: Arc<Option<DesignerLlmClient>>, // Make LLM client optional
+                                                // TODO: Add any other necessary state or configuration
 }
 
 impl GameToolsRouter {
     /// Creates a new `GameToolsRouter`.
     pub fn new() -> Result<Self> {
         let session_manager = Arc::new(Mutex::new(SessionManager::new()));
-        let llm_client = Arc::new(DesignerLlmClient::new()?); // This will fail if API key is missing
+        // Try to create the LLM client, but don't fail if the API key is missing
+        // It will only be required for tools that actually need the LLM
+        let llm_client = match DesignerLlmClient::new() {
+            Ok(client) => Arc::new(Some(client)),
+            Err(_) => Arc::new(None), // LLM client is not available
+        };
 
         Ok(Self {
             session_manager,
@@ -104,7 +111,8 @@ impl Router for GameToolsRouter {
             ),
             Tool::new(
                 "featureReview".to_string(),
-                "Submit a comprehensive report of changes made for review by the designer LLM.".to_string(),
+                "Submit a comprehensive report of changes made for review by the designer LLM."
+                    .to_string(),
                 json!({
                     "type": "object",
                     "properties": {
@@ -122,7 +130,8 @@ impl Router for GameToolsRouter {
             ),
             Tool::new(
                 "reviewReply".to_string(),
-                "Reply to questions raised by the designer LLM during a feature review.".to_string(),
+                "Reply to questions raised by the designer LLM during a feature review."
+                    .to_string(),
                 json!({
                     "type": "object",
                     "properties": {
@@ -163,11 +172,13 @@ impl Router for GameToolsRouter {
         &self,
         tool_name: &str,
         arguments: Value,
-    ) -> std::pin::Pin<Box<dyn futures::Future<Output = Result<Vec<Content>, ToolError>> + Send + 'static>> {
+    ) -> std::pin::Pin<
+        Box<dyn futures::Future<Output = Result<Vec<Content>, ToolError>> + Send + 'static>,
+    > {
         // This is an async function signature, so we need to box a future.
         // We'll implement the logic for each tool call here.
         // For now, we'll return a stub response or an error indicating it's not yet implemented.
-        
+
         let tool_name = tool_name.to_string();
         let arguments = arguments.clone();
         let this = self.clone(); // Clone the Arc references
@@ -175,54 +186,95 @@ impl Router for GameToolsRouter {
         Box::pin(async move {
             match tool_name.as_str() {
                 "designNew" => {
-                    let session_name = arguments.get("sessionName").and_then(|v| v.as_str()).ok_or_else(|| {
-                        ToolError::InvalidParameters("sessionName is required for designNew".to_string())
-                    })?;
-                    let game_description = arguments.get("gameDescription").and_then(|v| v.as_str()).ok_or_else(|| {
-                        ToolError::InvalidParameters("gameDescription is required for designNew".to_string())
-                    })?;
+                    let session_name = arguments
+                        .get("sessionName")
+                        .and_then(|v| v.as_str())
+                        .ok_or_else(|| {
+                            ToolError::InvalidParameters(
+                                "sessionName is required for designNew".to_string(),
+                            )
+                        })?;
+                    let game_description = arguments
+                        .get("gameDescription")
+                        .and_then(|v| v.as_str())
+                        .ok_or_else(|| {
+                            ToolError::InvalidParameters(
+                                "gameDescription is required for designNew".to_string(),
+                            )
+                        })?;
 
                     // Logic to create a new session
                     let session_manager = this.session_manager.lock().await;
-                    session_manager.create_session(session_name.to_string(), game_description.to_string()).await
-                        .map_err(|e| ToolError::ExecutionError(format!("Failed to create session: {}", e)))?;
+                    session_manager
+                        .create_session(session_name.to_string(), game_description.to_string())
+                        .await
+                        .map_err(|e| {
+                            ToolError::ExecutionError(format!("Failed to create session: {}", e))
+                        })?;
 
-                    Ok(vec![Content::text(format!("Session '{}' created successfully.", session_name))])
-                },
+                    Ok(vec![Content::text(format!(
+                        "Session '{}' created successfully.",
+                        session_name
+                    ))])
+                }
                 "designOverview" => {
-                    let session_name = arguments.get("sessionName").and_then(|v| v.as_str()).ok_or_else(|| {
-                        ToolError::InvalidParameters("sessionName is required for designOverview".to_string())
-                    })?;
+                    let session_name = arguments
+                        .get("sessionName")
+                        .and_then(|v| v.as_str())
+                        .ok_or_else(|| {
+                            ToolError::InvalidParameters(
+                                "sessionName is required for designOverview".to_string(),
+                            )
+                        })?;
 
                     // Logic to get design overview
                     let session_manager = this.session_manager.lock().await;
-                    if let Some(session) = session_manager.load_session(session_name).await.map_err(|e| ToolError::ExecutionError(format!("Failed to load session: {}", e)))? {
+                    if let Some(session) = session_manager
+                        .load_session(session_name)
+                        .await
+                        .map_err(|e| {
+                            ToolError::ExecutionError(format!("Failed to load session: {}", e))
+                        })?
+                    {
                         Ok(vec![Content::text(session.initial_description)])
                     } else {
-                        Err(ToolError::ExecutionError(format!("Session '{}' not found.", session_name)))
+                        Err(ToolError::ExecutionError(format!(
+                            "Session '{}' not found.",
+                            session_name
+                        )))
                     }
-                },
+                }
                 "nextFeature" => {
                     // Logic to get the next feature
-                    Err(ToolError::ExecutionError("Tool 'nextFeature' is not yet implemented.".to_string()))
-                },
+                    Err(ToolError::ExecutionError(
+                        "Tool 'nextFeature' is not yet implemented.".to_string(),
+                    ))
+                }
                 "featureReview" => {
                     // Logic to submit feature review
-                    Err(ToolError::ExecutionError("Tool 'featureReview' is not yet implemented.".to_string()))
-                },
+                    Err(ToolError::ExecutionError(
+                        "Tool 'featureReview' is not yet implemented.".to_string(),
+                    ))
+                }
                 "reviewReply" => {
                     // Logic to reply to review questions
-                    Err(ToolError::ExecutionError("Tool 'reviewReply' is not yet implemented.".to_string()))
-                },
+                    Err(ToolError::ExecutionError(
+                        "Tool 'reviewReply' is not yet implemented.".to_string(),
+                    ))
+                }
                 "featureAsk" => {
                     // Logic to ask an ad-hoc question
-                    Err(ToolError::ExecutionError("Tool 'featureAsk' is not yet implemented.".to_string()))
-                },
-                _ => Err(ToolError::NotFound(format!("Tool '{}' not found.", tool_name))),
+                    Err(ToolError::ExecutionError(
+                        "Tool 'featureAsk' is not yet implemented.".to_string(),
+                    ))
+                }
+                _ => Err(ToolError::NotFound(format!(
+                    "Tool '{}' not found.",
+                    tool_name
+                ))),
             }
         })
     }
-
 
     // --- Resources and Prompts are not implemented for this router ---
     fn list_resources(&self) -> Vec<Resource> {
@@ -232,8 +284,18 @@ impl Router for GameToolsRouter {
     fn read_resource(
         &self,
         _uri: &str,
-    ) -> std::pin::Pin<Box<dyn futures::Future<Output = Result<String, mcp_core::handler::ResourceError>> + Send + 'static>> {
-        Box::pin(async { Err(mcp_core::handler::ResourceError::NotFound("Resource not found".to_string())) })
+    ) -> std::pin::Pin<
+        Box<
+            dyn futures::Future<Output = Result<String, mcp_core::handler::ResourceError>>
+                + Send
+                + 'static,
+        >,
+    > {
+        Box::pin(async {
+            Err(mcp_core::handler::ResourceError::NotFound(
+                "Resource not found".to_string(),
+            ))
+        })
     }
 
     fn list_prompts(&self) -> Vec<mcp_core::prompt::Prompt> {
@@ -243,8 +305,18 @@ impl Router for GameToolsRouter {
     fn get_prompt(
         &self,
         _prompt_name: &str,
-    ) -> std::pin::Pin<Box<dyn futures::Future<Output = Result<String, mcp_core::handler::PromptError>> + Send + 'static>> {
-        Box::pin(async { Err(mcp_core::handler::PromptError::NotFound("Prompt not found".to_string())) })
+    ) -> std::pin::Pin<
+        Box<
+            dyn futures::Future<Output = Result<String, mcp_core::handler::PromptError>>
+                + Send
+                + 'static,
+        >,
+    > {
+        Box::pin(async {
+            Err(mcp_core::handler::PromptError::NotFound(
+                "Prompt not found".to_string(),
+            ))
+        })
     }
 }
 

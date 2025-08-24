@@ -3,8 +3,6 @@ use std::env::{self, VarError};
 use mcp_core::ToolError;
 use serde::Deserialize;
 
-
-
 #[derive(Debug, Deserialize)]
 struct OpenRouterResponse {
     choices: Vec<Choice>,

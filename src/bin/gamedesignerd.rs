@@ -1,7 +1,7 @@
 use anyhow::Result;
 use clap::{Parser, Subcommand};
 // Import the new GameToolsRouter
-use game_designer_mcp::tools::GameToolsRouter; 
+use game_designer_mcp::tools::GameToolsRouter;
 use mcp_core::Content;
 use mcp_server::router::RouterService;
 use mcp_server::{ByteTransport, Router, Server};
@@ -153,10 +153,7 @@ async fn run_http_server(address: String, debug: bool) -> Result<()> {
         "Game Designer MCP Server listening on {}",
         listener.local_addr()?
     );
-    tracing::info!(
-        "Access the Game Designer MCP Server at http://{}/sse",
-        addr
-    );
+    tracing::info!("Access the Game Designer MCP Server at http://{}/sse", addr);
 
     // Note: The transport module might need updates if it's specific to docs.
     // For now, we'll assume a generic HTTP SSE setup or that the transport module is adaptable.
@@ -189,14 +186,18 @@ async fn run_test_tool(config: TestToolConfig) -> Result<()> {
         question,
         debug,
     } = config;
-    
+
     // Print help information if the tool is "help"
     if tool == "help" {
         println!("Game Designer MCP CLI Tool Tester\n");
         println!("Usage examples:");
         println!("  cargo run --bin gamedesignerd -- test --tool designNew --session-name my_game --game-description \"A 2D platformer about cats in space\"");
-        println!("  cargo run --bin gamedesignerd -- test --tool designOverview --session-name my_game");
-        println!("  cargo run --bin gamedesignerd -- test --tool nextFeature --session-name my_game");
+        println!(
+            "  cargo run --bin gamedesignerd -- test --tool designOverview --session-name my_game"
+        );
+        println!(
+            "  cargo run --bin gamedesignerd -- test --tool nextFeature --session-name my_game"
+        );
         println!("  cargo run --bin gamedesignerd -- test --tool featureReview --session-name my_game --changes-made \"Implemented basic player movement with WASD and jump\"");
         println!("  cargo run --bin gamedesignerd -- test --tool reviewReply --session-name my_game --content \"Yes, I used the Bevy engine for this implementation.\"");
         println!("  cargo run --bin gamedesignerd -- test --tool featureAsk --session-name my_game --question \"How should the player interact with collectible items?\"");
@@ -237,9 +238,9 @@ async fn run_test_tool(config: TestToolConfig) -> Result<()> {
             let session_name = session_name
                 .clone()
                 .ok_or_else(|| anyhow::anyhow!("--session-name is required for designNew tool"))?;
-            let game_description = game_description
-                .clone()
-                .ok_or_else(|| anyhow::anyhow!("--game-description is required for designNew tool"))?;
+            let game_description = game_description.clone().ok_or_else(|| {
+                anyhow::anyhow!("--game-description is required for designNew tool")
+            })?;
 
             json!({
                 "sessionName": session_name,
@@ -256,12 +257,12 @@ async fn run_test_tool(config: TestToolConfig) -> Result<()> {
             })
         }
         "featureReview" => {
-            let session_name = session_name
-                .clone()
-                .ok_or_else(|| anyhow::anyhow!("--session-name is required for featureReview tool"))?;
-            let changes_made = changes_made
-                .clone()
-                .ok_or_else(|| anyhow::anyhow!("--changes-made is required for featureReview tool"))?;
+            let session_name = session_name.clone().ok_or_else(|| {
+                anyhow::anyhow!("--session-name is required for featureReview tool")
+            })?;
+            let changes_made = changes_made.clone().ok_or_else(|| {
+                anyhow::anyhow!("--changes-made is required for featureReview tool")
+            })?;
 
             json!({
                 "sessionName": session_name,
@@ -269,9 +270,9 @@ async fn run_test_tool(config: TestToolConfig) -> Result<()> {
             })
         }
         "reviewReply" => {
-            let session_name = session_name
-                .clone()
-                .ok_or_else(|| anyhow::anyhow!("--session-name is required for reviewReply tool"))?;
+            let session_name = session_name.clone().ok_or_else(|| {
+                anyhow::anyhow!("--session-name is required for reviewReply tool")
+            })?;
             let content = content
                 .clone()
                 .ok_or_else(|| anyhow::anyhow!("--content is required for reviewReply tool"))?;
@@ -324,7 +325,7 @@ async fn run_test_tool(config: TestToolConfig) -> Result<()> {
                 let content_str = text.text;
                 // For simplicity, we'll just print the text content directly for game tools.
                 // Formatting options could be added later if needed.
-                
+
                 // Print to stdout
                 println!("\n--- TOOL RESULT ---\n");
                 println!("{}", content_str);
