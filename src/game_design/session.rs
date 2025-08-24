@@ -168,12 +168,13 @@ impl SessionManager {
         }
 
         prompt.push_str(
-            "Please provide the next feature that should be implemented. \
-             Include a brief title and a detailed specification that explains \
-             what needs to be implemented, why it's important, and any technical \
-             considerations. \
+            "Please provide the next small, focused feature that should be implemented. \
+             The feature should be something that can be completed in a short amount of time \
+             (e.g., a single function, a small component, a basic UI element). \
+             Include a brief title and a concise specification (2-3 sentences) that explains \
+             what needs to be implemented and why it's important. \
              Format your response as JSON with 'name' and 'description' fields:\n\
-             {\n  \"name\": \"Feature Title\",\n  \"description\": \"Detailed specification...\"\n}\n\
+             {\n  \"name\": \"Feature Title\",\n  \"description\": \"Concise specification...\"\n}\n\
              Only return the JSON, nothing else."
         );
 
@@ -181,11 +182,12 @@ impl SessionManager {
             crate::game_design::designer_llm::ChatMessage {
                 role: "system".to_string(),
                 content: "You are an expert game designer and software architect. \
-                         Your task is to determine the next feature to implement in a \
-                         game development project. You will be given the game design \
-                         document and information about what has already been planned \
-                         and implemented. Respond with a JSON object containing the \
-                         feature name and detailed description.".to_string(),
+                         Your task is to determine the next small, focused feature to implement in a \
+                         game development project. The feature should be something that can be \
+                         completed quickly (like a single function, small component, or basic UI element). \
+                         You will be given the game design document and information about what has \
+                         already been planned and implemented. Respond with a JSON object containing \
+                         the feature name and a concise description (2-3 sentences).".to_string(),
             },
             crate::game_design::designer_llm::ChatMessage {
                 role: "user".to_string(),
