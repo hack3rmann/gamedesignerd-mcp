@@ -286,10 +286,35 @@ Provide detailed but concise information for each section.",
                     }
                 }
                 "nextFeature" => {
+                    let session_name = arguments
+                        .get("sessionName")
+                        .and_then(|v| v.as_str())
+                        .ok_or_else(|| {
+                            ToolError::InvalidParameters(
+                                "sessionName is required for nextFeature".to_string(),
+                            )
+                        })?;
+
                     // Logic to get the next feature
-                    Err(ToolError::ExecutionError(
-                        "Tool 'nextFeature' is not yet implemented.".to_string(),
-                    ))
+                    let session_manager = this.session_manager.lock().await;
+                    
+                    // Get the LLM client reference if available
+                    let llm_client_ref = this.llm_client.as_ref().as_ref();
+                    
+                    match session_manager
+                        .get_next_feature(session_name, llm_client_ref)
+                        .await
+                    {
+                        Ok(feature_description) => {
+                            Ok(vec![Content::text(feature_description)])
+                        }
+                        Err(e) => {
+                            Err(ToolError::ExecutionError(format!(
+                                "Failed to get next feature: {}",
+                                e
+                            )))
+                        }
+                    }
                 }
                 "featureReview" => {
                     // Logic to submit feature review
