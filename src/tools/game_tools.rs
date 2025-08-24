@@ -199,17 +199,62 @@ impl Router for GameToolsRouter {
                             )
                         })?;
 
-                    // Logic to create a new session
+                    // Check if we have an LLM client available
+                    let comprehensive_description = if let Some(llm_client) =
+                        this.llm_client.as_ref()
+                    {
+                        // Ask the LLM to create a comprehensive game design document
+                        let prompt = format!(
+                            r"Create a comprehensive game design document for a game with this description: '{}'.
+Include the following sections:
+1. Core Concept: A brief summary of the game's main idea
+2. Gameplay Mechanics: Key gameplay systems and interactions
+3. Story and Setting: The narrative context and world
+4. Target Audience: Who the game is designed for
+5. Unique Features: What makes this game stand out
+6. Technical Considerations: Any important technical aspects
+7. Development Milestones: Major phases of development
+
+Provide detailed but concise information for each section.",
+                            game_description
+                        );
+
+                        let messages = vec![
+                            crate::game_design::designer_llm::ChatMessage {
+                                role: "system".to_string(),
+                                content: "You are an expert game designer. Your task is to create detailed and comprehensive game design documents based on brief descriptions.".to_string(),
+                            },
+                            crate::game_design::designer_llm::ChatMessage {
+                                role: "user".to_string(),
+                                content: prompt,
+                            },
+                        ];
+
+                        match llm_client.call_llm(messages).await {
+                            Ok(response) => response,
+                            Err(e) => {
+                                // If LLM call fails, fall back to the original description
+                                tracing::warn!("Failed to get comprehensive description from LLM: {}. Using original description.", e);
+                                game_description.to_string()
+                            }
+                        }
+                    } else {
+                        // If no LLM client, use the original description
+                        tracing::warn!("No LLM client available. Using original description.");
+                        game_description.to_string()
+                    };
+
+                    // Logic to create a new session with the comprehensive description
                     let session_manager = this.session_manager.lock().await;
                     session_manager
-                        .create_session(session_name.to_string(), game_description.to_string())
+                        .create_session(session_name.to_string(), comprehensive_description)
                         .await
                         .map_err(|e| {
                             ToolError::ExecutionError(format!("Failed to create session: {}", e))
                         })?;
 
                     Ok(vec![Content::text(format!(
-                        "Session '{}' created successfully.",
+                        "Session '{}' created successfully with comprehensive game design.",
                         session_name
                     ))])
                 }
