@@ -48,11 +48,12 @@ impl DesignerLlmClient {
         let api_key = env::var("OPENROUTER_API_KEY")
             .map_err(|_| anyhow::anyhow!("OPENROUTER_API_KEY environment variable not set"))?;
 
+        let model = env::var("GAMEDESIGNER_MODEL").unwrap_or_else(|_| CHIMERA_MODEL.to_owned());
+
         Ok(Self {
             client: Client::new(),
             api_key,
-            // TODO: Make model configurable or use a default suitable for planning tasks.
-            model: CHIMERA_MODEL.to_owned(),
+            model,
         })
     }
 
