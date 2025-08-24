@@ -5,6 +5,6 @@ pub mod docs;
 pub mod game_tools;
 
 // Re-exports
-pub use docs::docs::DocCache;
+pub use docs::docs_impl::DocCache;
 pub use docs::DocRouter; // Assuming we might still use the doc router, or this might be removed later.
 pub use game_tools::GameToolsRouter;

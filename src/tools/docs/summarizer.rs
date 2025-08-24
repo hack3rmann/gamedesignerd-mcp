@@ -1,22 +1,9 @@
 use std::env::{self, VarError};
 
 use mcp_core::ToolError;
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 
-// Define the request and response structures using Serde
-#[derive(Debug, Serialize)]
-struct OpenRouterRequest {
-    model: String,
-    messages: Vec<Message>,
-    temperature: f32,
-    max_tokens: u32,
-}
 
-#[derive(Debug, Serialize)]
-struct Message {
-    role: String,
-    content: String,
-}
 
 #[derive(Debug, Deserialize)]
 struct OpenRouterResponse {

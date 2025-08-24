@@ -208,29 +208,6 @@ async fn test_lookup_crate_network_error() {
     }
 }
 
-#[tokio::test]
-async fn test_lookup_crate_with_mocks() {
-    // Since we can't easily modify the URL in the implementation to use a mock server,
-    // we'll skip the actual test but demonstrate the approach that would work if
-    // the URL was configurable for testing.
-
-    // In a real scenario, we'd either:
-    // 1. Make the URL configurable for testing
-    // 2. Use dependency injection for the HTTP client
-    // 3. Use a test-specific implementation
-
-    // For now, we'll just assert true to avoid test failure
-    assert!(true);
-}
-
-#[tokio::test]
-async fn test_lookup_crate_not_found() {
-    // Similar to the above test, we can't easily mock the HTTP responses without
-    // modifying the implementation. In a real scenario, we'd make the code more testable.
-
-    assert!(true);
-}
-
 // Cache functionality tests
 #[tokio::test]
 async fn test_lookup_crate_uses_cache() {
